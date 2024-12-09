@@ -1,0 +1,96 @@
+using JuMP
+using GLPK
+using Plots
+# Step 1: Define the problem data
+
+# Resource requirements matrix A (5 projects x 4 resource types)
+A = [
+    15 25 10 8;   # Project 1 resource requirements
+    30 20 15 12;  # Project 2 resource requirements
+    10 5  20 8;   # Project 3 resource requirements
+    25 30 25 15;  # Project 4 resource requirements
+    18 10 15 10   # Project 5 resource requirements
+]
+
+# Total available resources vector b (4 resource types)
+b = [60, 70, 50, 30]  # Available amounts of each resource type (reduced to make it more restrictive)
+
+# Productivity contributions vector c (productivity score for each project)
+c = [20, 40, 15, 50, 25]  # Modified to prioritize some projects over others
+# Step 2: Set up the optimization model
+model = Model(GLPK.Optimizer)
+
+# Define the decision variables for each project (allocation proportion)
+@variable(model, 0 <= x[1:5] <= 1)  # Allocation for each project, between 0 and 1
+
+# Objective: Maximize total productivity across all projects
+@objective(model, Max, sum(c[i] * x[i] for i in 1:5))
+
+# Add constraints for resource availability
+@constraint(model, [j=1:4], sum(A[i, j] * x[i] for i in 1:5) <= b[j])
+# Step 3: Solve the optimization problem
+optimize!(model)
+
+# Extract and display the solution
+optimal_allocation = value.(x)
+
+println("Optimal allocation for each project:")
+println(optimal_allocation)
+# Step 4: Visualize the Results
+
+# Step 1: Bar Chart - Productivity Contribution per Project
+p1 = bar(
+    ["Project 1", "Project 2", "Project 3", "Project 4", "Project 5"],
+    c .* optimal_allocation,
+    xlabel = "Project",
+    ylabel = "Productivity Score",
+    title = "Productivity Contribution per Project",
+    label = false,
+    legend = :none
+)
+display(p1)  # Ensure the bar chart is displayed
+
+# Step 2: Pie Chart - Proportion of Resources Allocated
+p2 = pie(
+    ["Project 1", "Project 2", "Project 3", "Project 4", "Project 5"],
+    optimal_allocation,
+    title = "Proportion of Resources Allocated to Each Project"
+)
+display(p2)  # Ensure the pie chart is displayed
+
+# Step 3: Heatmap - Resource Requirements per Project
+p3 = heatmap(
+    ["Project 1", "Project 2", "Project 3", "Project 4", "Project 5"],
+    ["Resource 1", "Resource 2", "Resource 3", "Resource 4"],
+    A',
+    xlabel = "Projects",
+    ylabel = "Resources",
+    title = "Resource Requirements per Project (Heatmap)"
+)
+display(p3)  # Ensure the heatmap is displayed
+
+# Step 4: Line Graph - Resource Usage vs Available Resources
+used_resources = [sum(A[i, j] * optimal_allocation[i] for i in 1:5) for j in 1:4]
+p4 = plot(
+    ["Resource 1", "Resource 2", "Resource 3", "Resource 4"],
+    [used_resources, b],
+    label = ["Used Resources" "Available Resources"],
+    xlabel = "Resource Type",
+    ylabel = "Resource Amount",
+    title = "Total Resource Usage vs Available Resources",
+    legend = :topright
+)
+display(p4)  # Ensure the line graph is displayed
+
+# Step 5: Stacked Bar Chart - Resource Requirements per Project
+p5 = bar(
+    ["Project 1", "Project 2", "Project 3", "Project 4", "Project 5"],
+    A,
+    xlabel = "Projects",
+    ylabel = "Resource Requirements",
+    title = "Stacked Resource Requirements per Project",
+    label = ["Resource 1", "Resource 2", "Resource 3", "Resource 4"],
+    bar_width = 0.6,
+    lw = 0.5
+)
+display(p5)  # Ensure the stacked bar chart is displayed
